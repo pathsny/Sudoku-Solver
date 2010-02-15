@@ -1,0 +1,17 @@
+# Created by IntelliJ IDEA.
+# User: viyenga
+# Date: May 4, 2007
+# Time: 12:46:16 PM
+# To change this template use File | Settings | File Templates.
+
+class CellValues
+    @@values = (1..9).to_a
+
+    def CellValues.AllowedValues(*excludedValues)
+        (excludedValues.empty?)? @@values : @@values - excludedValues.first
+    end
+
+    def CellValues.isValid?(value)
+        @@values.include?(value)
+    end
+end

@@ -1,0 +1,117 @@
+# Created by IntelliJ IDEA.
+# User: viyenga
+# Date: Apr 27, 2007
+# Time: 3:12:37 PM
+# To change this template use File | Settings | File Templates.
+#
+
+require 'src/CellValues.rb'
+require 'src/Position.rb'
+
+class Move
+    def initialize(position, value)
+        @position = position
+        @value = value
+    end
+    attr_accessor :position, :value
+    def to_s
+        '(' + @position.to_s + ' ' + @value.to_s + ')'
+    end
+
+end
+
+class Solver
+    def initialize(game, analyzer)
+        @game = game
+        @analyzer = analyzer
+        @analysisStack = Array.new
+        @moves = 0
+        @rollbacks = 0
+
+    end
+
+    attr_reader :moves, :rollbacks
+
+    def solve
+        analysis = @analyzer.new(@game,nil)
+        until (@game.isComplete?)
+            if (analysis.isInvalidState?) then
+                rollBack
+            else
+                @analysisStack.push(analysis)
+            end
+            @game.makeMove(@analysisStack.last.currentMove)
+            @moves += 1
+            analysis = @analyzer.new(@game,analysis)
+        end
+    end
+
+    def rollBackStep
+        @rollbacks += 1
+        lastAnalysis = @analysisStack.last
+        @game.undo(lastAnalysis.currentMove)
+        lastAnalysis.nextMove
+        lastAnalysis
+    end
+
+    def rollBack
+        lastAnalysis = rollBackStep
+        while (lastAnalysis.isInvalidState?)
+            @analysisStack.pop
+            lastAnalysis = rollBackStep
+        end
+    end
+end
+
+class Game
+    def initialize(initialState)
+        @cellHash = Hash[*Position.All.zip(initialState).flatten]
+        @unsetCellPositions = Position.All.select {|position| !CellValues.isValid?(@cellHash[position])}
+    end
+
+    def isComplete?
+        @unsetCellPositions.empty?
+    end
+
+    def unsetCellPositions
+          @unsetCellPositions
+    end
+
+    def firstUnsetCellPosition
+        @unsetCellPositions.first
+    end
+
+    def findCellValues(positions)
+        positions.collect{|position| findCellValue(position)}
+    end
+
+    def findSetCellValues(positions)
+        findCellValues(positions - @unsetCellPositions)
+    end
+
+    def findCellValue(position)
+        @cellHash[position]
+    end
+
+    def makeMove(move)
+        @cellHash[move.position] = move.value
+        @unsetCellPositions.delete(move.position)
+    end
+
+    def undo(move)
+        @unsetCellPositions.insert(0,move.position)
+    end
+
+    def to_s
+        "[#{Position.Rows.collect{|rowPositions| rowString(rowPositions)}.join(",\n  ")}]"
+    end
+
+    def rowString(rowPositions)
+        rowPositions.collect{|position| findCellValue(position)}.join(',')
+    end
+
+    def values
+        Position.All.collect{|position| @cellHash[position]}
+    end
+
+end

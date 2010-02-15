@@ -1,0 +1,158 @@
+# Created by IntelliJ IDEA.
+# User: viyenga
+# Date: Apr 28, 2007
+# Time: 4:25:52 PM
+# To change this template use File | Settings | File Templates.
+
+require 'src/Game.rb'
+
+module ListFunctions
+    def shortest
+        empty? ? Array.new : min{|first, second| first.length <=> second.length}
+    end
+end
+
+
+module MoveCollectionCreator
+    def validMoves(position)
+        unuseableValues = findSetCellValues(position.neighbourPositions).uniq
+        CellValues.AllowedValues(unuseableValues).collect{|value| Move.new(position, value)}
+    end
+
+    def firstValidMoveList
+        puts "boo " + self.to_s
+        validMoves(firstUnsetCellPosition)
+    end
+
+    def validMoveLists
+        list = unsetCellPositions.collect{|position| validMoves(position)}
+        list.extend(ListFunctions)
+        list
+    end
+end
+
+module MoveCollectionStorage
+    def storeValidMoves(game,analyzer)
+        @validMoveLists = game.validMoveLists
+    end
+end
+
+
+class BasicAnalyzer
+    def initialize(game,analyzer)
+        game.extend(MoveCollectionCreator)
+        findValidMoves(game,analyzer)
+    end
+
+    def findValidMoves(game,analyzer)
+        @validMoves = game.firstValidMoveList
+    end
+
+    attr_reader :validMoves
+
+    def isInvalidState?
+        validMoves.empty?
+    end
+
+    def currentMove
+        validMoves.first
+    end
+
+    def nextMove
+        validMoves.delete_at(0)
+    end
+end
+
+
+class SimpleAnalyzer < BasicAnalyzer
+    include MoveCollectionStorage
+    def findValidMoves(game,analyzer)
+        storeValidMoves(game,analyzer)
+    end
+
+    def validMoves
+        @validMoveLists.first
+    end
+
+    def isInvalidState?
+        @validMoveLists.any?{|moveList| moveList.empty?}
+    end
+end
+
+
+
+class ConstraintAnalyzer < BasicAnalyzer
+    def findValidMoves(game,analyzer)
+        storeValidMoves(game,analyzer)
+        @validMoves = @validMoveLists.shortest
+    end
+end
+
+class ShortCircuitConstraintAnalyzer < BasicAnalyzer
+
+    def findValidMoves(game,analyzer)
+        @validMoves = shortestMoveList(game)
+    end
+
+    def shortestMoveList(game)
+        length = 81
+        validMoves = Array.new
+        game.unsetCellPositions.each {|position|
+            list = game.validMoves(position)
+            return list if (list.length == 1 || list.empty?)
+            if (list.length < length)
+                length = list.length
+                validMoves = list
+            end }
+        validMoves
+    end
+end
+
+class NumberAnalyzer < BasicAnalyzer
+    def findValidMoves(game,analyzer)
+        validMoveLists = game.validMoveLists
+        CellValues.AllowedValues.each {|value| validMoveLists += Number.new(value, game).getValidMoveLists}
+        validMoveLists.extend(ListFunctions)
+        @validMoves = validMoveLists.shortest
+    end
+end
+
+class Number
+    def initialize(number, game)
+        @number = number
+        @game = game
+        @validMoveLists = game.validMoveLists
+        @rows = playableLists(Position.Rows)
+        @columns = playableLists(Position.Columns)
+        @blocks = playableLists(Position.Blocks)
+    end
+
+    def validPositions
+        @rows.flatten & columns.flatten & blocks.flatten
+    end
+
+    attr_reader :rows, :columns, :blocks
+
+    def getMoveList(positionList)
+        positionList.collect{|position| getMove(position)}
+    end
+
+    def getMove(position)
+        Move.new(position, @number)
+    end
+
+    def getValidMoveLists
+        (@rows + @columns + @blocks).collect{|positionList| getMoveList(positionList)}
+    end
+
+    private
+
+    def numberPlayableIn?(position)
+        @validMoveLists.flatten.any?{|move| move.position == position && move.value == @number}
+    end
+
+    def playableLists(lists)
+        unrepresentedLists = lists.collect{|positionList| positionList.select{|position| numberPlayableIn?(position)}}
+        unrepresentedLists.select{|positionList| !positionList.empty?}
+    end
+end

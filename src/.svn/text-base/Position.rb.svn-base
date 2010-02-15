@@ -1,0 +1,82 @@
+# Created by IntelliJ IDEA.
+# User: viyenga
+# Date: May 4, 2007
+# Time: 12:48:39 PM
+# To change this template use File | Settings | File Templates.
+
+class Position
+    def initialize(row, column)
+        @row = row
+        @column = column
+    end
+
+    def self.positionList(rows, columns)
+        rows.collect{|row| columns.collect {|column| new(row, column)}}.flatten
+    end
+    private_class_method :new
+
+    @@indices = (0..8).to_a
+    @@all = self.positionList(@@indices, @@indices)
+
+    attr_reader :row, :column
+
+    def block
+        @row - @row%3 + @column/3
+    end
+
+    def self.getPosition(row, column)
+        @@all.find {|position| (position.row == row && position.column == column)}
+    end
+
+    def self.blockIndexes(base)
+        first = base*3
+        (first..first+2).to_a
+    end
+    def self.block(index)
+        rows = self.blockIndexes(index/3)
+        columns = self.blockIndexes(index%3)
+        rows.collect{|row| columns.collect {|column| self.getPosition(row, column)}}.flatten
+    end
+
+    @@blocks = @@indices.collect{|index| self.block(index)}
+    @@rows = @@indices.collect{|index| @@all.select{|position| position.row == index}}
+    @@columns = @@indices.collect{|index| @@all.select{|position| position.column == index}}
+
+    public
+
+    def self.All
+        @@all
+    end
+
+    def self.Blocks
+        @@blocks
+    end
+
+    def self.Rows
+        @@rows
+    end
+
+    def self.Columns
+        @@columns
+    end
+
+    def otherRowPositions
+        @@rows[row]
+    end
+
+    def otherColumnPositions
+        @@columns[column]
+    end
+
+    def otherBlockPositions
+        @@blocks[block]
+    end
+
+    def neighbourPositions
+        otherRowPositions + otherColumnPositions + otherBlockPositions
+    end
+
+    def to_s
+        "(#{@row},#{@column})"
+    end
+end
